@@ -35,7 +35,7 @@ wire [31:0]  iWrData;
 reg  [31:0]  oRdData;
 wire [3:0]   iQoS;
 reg          oFull;
-reg          oEmpty;
+reg  [4:0]   oEmpty;
 wire         wFull0;
 wire         wFull1;
 wire         wFull2;
@@ -73,24 +73,20 @@ assign wFifoStatus = {wFull4, wFull3, wFull2, wFull1, wFull0};
 always @(posedge iWrClk or negedge iWrResetn) begin 
     if (~iWrResetn) begin 
         oFull <= 1'b0;
-        oEmpty<= 1'b0;
+        oEmpty<= 5'b0;
     end else begin 
         if (iQoS[3]) begin 
             oFull  <= wFull4;
-            oEmpty <= wEmpty4;
         end else if (iQoS==4'b0000 || iQoS == 4'b0001) begin 
             oFull  <= wFull0;
-            oEmpty <= wEmpty0;
         end else if (iQoS==4'b0010 || iQoS == 4'b0011) begin 
             oFull  <= wFull0 & wFull1;
-            oEmpty <= wEmpty0& wEmpty1;
         end else if (iQoS==4'b0100 || iQoS == 4'b0101) begin 
             oFull  <= wFull0 & wFull1 & wFull2;
-            oEmpty <= wEmpty0& wEmpty1& wEmpty2;
         end else if (iQoS==4'b0010 || iQoS == 4'b0011) begin 
             oFull <= wFull0 & wFull1 & wFull2 & wFull3;
-            oEmpty <= wEmpty0& wEmpty1& wEmpty2& wEmpty3;
         end 
+        oEmpty <= {wEmpty4, wEmpty3, wEmpty2, wEmpty1, wEmpty0};
     end 
 end 
 //Write request

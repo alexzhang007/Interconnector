@@ -31,8 +31,8 @@ output  oRdData;
 output  oFull;
 output  oEmpty;
 
-wire [31:0]  iWrData;
-reg  [31:0]  oRdData;
+wire [DSIZE-1:0]  iWrData;
+reg  [DSIZE-1:0]  oRdData;
 wire [3:0]   iQoS;
 reg          oFull;
 reg  [4:0]   oEmpty;
@@ -56,16 +56,16 @@ reg          rWr1;
 reg          rWr2;
 reg          rWr3;
 reg          rWr4;
-reg  [31:0]  rWrData0;
-reg  [31:0]  rWrData1;
-reg  [31:0]  rWrData2;
-reg  [31:0]  rWrData3;
-reg  [31:0]  rWrData4;
-wire [31:0]  wRdData0;
-wire [31:0]  wRdData1;
-wire [31:0]  wRdData2;
-wire [31:0]  wRdData3;
-wire [31:0]  wRdData4;
+reg  [DSIZE-1:0]  rWrData0;
+reg  [DSIZE-1:0]  rWrData1;
+reg  [DSIZE-1:0]  rWrData2;
+reg  [DSIZE-1:0]  rWrData3;
+reg  [DSIZE-1:0]  rWrData4;
+wire [DSIZE-1:0]  wRdData0;
+wire [DSIZE-1:0]  wRdData1;
+wire [DSIZE-1:0]  wRdData2;
+wire [DSIZE-1:0]  wRdData3;
+wire [DSIZE-1:0]  wRdData4;
 
 assign wFifoStatus = {wFull4, wFull3, wFull2, wFull1, wFull0};
 
@@ -97,11 +97,11 @@ always @(posedge iWrClk or negedge iWrResetn) begin
         rWr2     <= 1'b0;
         rWr3     <= 1'b0;
         rWr4     <= 1'b0;
-        rWrData0 <= 32'b0;
-        rWrData1 <= 32'b0;
-        rWrData2 <= 32'b0;
-        rWrData3 <= 32'b0;
-        rWrData4 <= 32'b0;
+        rWrData0 <= 0;
+        rWrData1 <= 0;
+        rWrData2 <= 0;
+        rWrData3 <= 0;
+        rWrData4 <= 0;
     end else begin
         casex ({iWr, iQoS}) 
             5'b10000, 5'b10001: begin 
@@ -154,11 +154,11 @@ always @(posedge iWrClk or negedge iWrResetn) begin
                     rWr2     <= 1'b0;
                     rWr3     <= 1'b0;
                     rWr4     <= 1'b0;
-                    rWrData0 <= 32'b0;
-                    rWrData1 <= 32'b0;
-                    rWrData2 <= 32'b0;
-                    rWrData3 <= 32'b0;
-                    rWrData4 <= 32'b0;
+                    rWrData0 <= 0;
+                    rWrData1 <= 0;
+                    rWrData2 <= 0;
+                    rWrData3 <= 0;
+                    rWrData4 <= 0;
             end 
         endcase
     end
@@ -172,7 +172,7 @@ always @(posedge iRdClk or negedge iRdResetn) begin
         rRd2    <= 1'b0;
         rRd3    <= 1'b0;
         rRd4    <= 1'b0;
-        oRdData <= 32'b0;
+        oRdData <= 0;
     end else begin 
         if(iRd & ~wEmpty4) begin 
             rRd4    <= 1'b1; 
@@ -195,7 +195,7 @@ always @(posedge iRdClk or negedge iRdResetn) begin
             rRd2    <= 1'b0;
             rRd3    <= 1'b0;
             rRd4    <= 1'b0;
-            oRdData <= 32'b0;
+            oRdData <= 0;
         end 
     end 
 end 

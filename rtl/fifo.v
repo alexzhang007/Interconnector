@@ -1,6 +1,8 @@
 //Author     : Alex Zhang (cgzhangwei@gmail.com)
 //Date       : 2013-12-17 
 //Description: Codes from Cummings SNUG 2002 San Joe. 
+//             Jun.14.2014
+//             Update the full and empty output signal, need one cycle only. 
 module fifo(
 wclk, 
 wrst_n,
@@ -185,7 +187,7 @@ assign rgnext = (rbnext>>1)^rbnext;
 
 always @(posedge rclk or negedge aempty_n)
     if (!aempty_n) {rempty, rempty2} <= 2'b11;
-    else           {rempty, rempty2} <= {rempty2, ~aempty_n};
+    else           {rempty2, rempty} <= {rempty, ~aempty_n};
 
 endmodule //endmodule rptr_empty  
 
@@ -229,6 +231,6 @@ assign wgnext = (wbnext>>1) ^ wbnext;
 always @(posedge wclk or negedge wrst_n or negedge afull_n)
     if (~wrst_n) {wfull, wfull2} <= 2'b00;
     else if (~afull_n) {wfull, wfull2} <= 2'b11;
-    else {wfull, wfull2} <= {wfull2, ~afull_n};
+    else {wfull2, wfull} <= {wfull, ~afull_n}; //We need one cycle delay
 
 endmodule //endmodule wptr_full

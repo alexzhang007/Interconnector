@@ -1,4 +1,6 @@
 Memory Access Interconnector (MAI)
 Author : Alex Zhang (cgzhangwei@gmail.com)
 Date   : Jun.13.2014
+* Jun.16.2014
+  IF_WrReq is debugging passed. 
 

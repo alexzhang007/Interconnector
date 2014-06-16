@@ -1,6 +1,33 @@
 //Author      : Alex Zhang (cgzhangwei@gmail.com)
 //Date        : Jun. 13. 2014
 //Description : Implement the memory_access_interconnector(MAI)
+`define ADDRWR_RANGE 44:13
+`define TAGWR_RANGE  12:9
+`define IDWR_RANGE   8:6
+`define LENWR_RANGE  5:4
+`define QOSWR_RANGE  3: 0
+`define DATAWR_RANGE 35:4
+`define MASKWR_RANGE 3:0
+
+`define ADDRWR_W 32
+`define TAGWR_W  4
+`define IDWR_W   3
+`define LENWR_W  2
+`define QOSWR_W  4
+`define DATAWR_W 32
+`define MASKWR_W 4
+`define REQWR_INFO_W  45
+`define REQWR_DATA_W  36
+
+`define ADDRRD_W  32
+`define TAGRD_W   4
+`define IDRD_W    3
+`define LENRD_W   2
+`define QOSRD_W   4
+`define DATARSP_W 32
+`define MASKRSP_W 4
+`define REQRD_INFO_W   45
+`define REQRSP_DATA_W  36
 
 module mem_access_interconnector (
 clk,
@@ -12,7 +39,7 @@ iIF_TagRd,
 iIF_IdRd,
 iIF_LenRd,
 iIF_QoSRd,
-iIF_ReadyRd,
+oIF_ReadyRd,
 oIF_ValidRsp,
 oIF_TagRsp,
 oIF_DataRsp,
@@ -37,7 +64,7 @@ iDM_TagRd,
 iDM_IdRd,
 iDM_LenRd,
 iDM_QoSRd,
-iDM_ReadyRd,
+oDM_ReadyRd,
 oDM_ValidRsp,
 oDM_TagRsp,
 oDM_DataRsp,
@@ -56,30 +83,35 @@ iDM_MaskWr,
 iDM_EoD,
 
 //Memory Access Controller (MAC)
-iMAC_ValidRd,
-iMAC_AddrRd,
-iMAC_TagRd,
-iMAC_IdRd,
-iMAC_LenRd,
-iMAC_QoSRd,
+oMAC_ValidRd,
+oMAC_AddrRd,
+oMAC_TagRd,
+oMAC_IdRd,
+oMAC_LenRd,
+oMAC_QoSRd,
 iMAC_ReadyRd,
-oMAC_ValidRsp,
-oMAC_TagRsp,
-oMAC_DataRsp,
-oMAC_StatusRsp,
-oMAC_EoD,
-iMAC_ReadyRsp,
-iMAC_ValidWr,
-iMAC_AddrWr,
-iMAC_TagWr,
-iMAC_IdWr,
-iMAC_LenWr,
-iMAC_QoSWr,
-oMAC_ReadyWr,
-iMAC_DataWr,
-iMAC_MaskWr,
-iMAC_EoD
+iMAC_ValidRsp,
+iMAC_TagRsp,
+iMAC_DataRsp,
+iMAC_StatusRsp,
+iMAC_EoD,
+oMAC_ReadyRsp,
+oMAC_ValidWr,
+oMAC_AddrWr,
+oMAC_TagWr,
+oMAC_IdWr,
+oMAC_LenWr,
+oMAC_QoSWr,
+iMAC_ReadyWr,
+oMAC_DataWr,
+oMAC_MaskWr,
+oMAC_EoD
 );
+
+parameter WRREQ_IDLE       = 3'b000;
+parameter WRREQ_FETCH_REQ  = 3'b001;
+parameter WRREQ_FETCH_DATA = 3'b010;
+parameter WRREQ_LAST_DATA  = 3'b100;
 input  clk;
 input  resetn;
 
@@ -90,7 +122,7 @@ input  iIF_TagRd;
 input  iIF_IdRd;
 input  iIF_LenRd;
 input  iIF_QoSRd;
-input  iIF_ReadyRd;
+output oIF_ReadyRd;
 output oIF_ValidRsp;
 output oIF_TagRsp;
 output oIF_DataRsp;
@@ -115,7 +147,7 @@ input  iDM_TagRd;
 input  iDM_IdRd;
 input  iDM_LenRd;
 input  iDM_QoSRd;
-input  iDM_ReadyRd;
+output oDM_ReadyRd;
 output oDM_ValidRsp;
 output oDM_TagRsp;
 output oDM_DataRsp;
@@ -140,7 +172,7 @@ output  oMAC_TagRd;
 output  oMAC_IdRd;
 output  oMAC_LenRd;
 output  oMAC_QoSRd;
-output  oMAC_ReadyRd;
+input   iMAC_ReadyRd;
 input   iMAC_ValidRsp;
 input   iMAC_TagRsp;
 input   iMAC_DataRsp;
@@ -166,7 +198,7 @@ wire [3:0]   iIF_TagRd;
 wire [2:0]   iIF_IdRd;
 wire [1:0]   iIF_LenRd;
 wire [3:0]   iIF_QoSRd;
-wire         iIF_ReadyRd;
+reg          oIF_ReadyRd;
 wire         oIF_ValidRsp;
 wire [3:0]   oIF_TagRsp;
 wire [31:0]  oIF_DataRsp;
@@ -179,7 +211,7 @@ wire [3:0]   iIF_TagWr;
 wire [2:0]   iIF_IdWr;
 wire [1:0]   iIF_LenWr;
 wire [3:0]   iIF_QoSWr;
-wire         oIF_ReadyWr;
+reg          oIF_ReadyWr;
 wire [31:0]  iIF_DataWr;
 wire [3:0]   iIF_MaskWr;
 wire         iIF_EoD;
@@ -191,7 +223,7 @@ wire [3:0]   iDM_TagRd;
 wire [2:0]   iDM_IdRd;
 wire [1:0]   iDM_LenRd;
 wire [3:0]   iDM_QoSRd;
-wire         iDM_ReadyRd;
+reg          oDM_ReadyRd;
 wire         oDM_ValidRsp;
 wire [3:0]   oDM_TagRsp;
 wire [31:0]  oDM_DataRsp;
@@ -204,63 +236,76 @@ wire [3:0]   iDM_TagWr;
 wire [2:0]   iDM_IdWr;
 wire [1:0]   iDM_LenWr;
 wire [3:0]   iDM_QoSWr;
-wire         oDM_ReadyWr;
+reg          oDM_ReadyWr;
 wire [31:0]  iDM_DataWr;
 wire [3:0]   iDM_MaskWr;
 wire         iDM_EoD;
 
 //Memory Access Controller (MAC)
-wire         oMAC_ValidRd;
-wire [31:0]  oMAC_AddrRd;
-wire [3:0]   oMAC_TagRd;
-wire [2:0]   oMAC_IdRd;
-wire [1:0]   oMAC_LenRd;
-wire [3:0]   oMAC_QoSRd;
-wire         oMAC_ReadyRd;
+reg          oMAC_ValidRd;
+reg  [31:0]  oMAC_AddrRd;
+reg  [3:0]   oMAC_TagRd;
+reg  [2:0]   oMAC_IdRd;
+reg  [1:0]   oMAC_LenRd;
+reg  [3:0]   oMAC_QoSRd;
+wire         iMAC_ReadyRd;
 wire         iMAC_ValidRsp;
 wire [3:0]   iMAC_TagRsp;
 wire [31:0]  iMAC_DataRsp;
 wire [1:0]   iMAC_StatusRsp;
 wire         iMAC_EoD;
-wire         oMAC_ReadyRsp;
-wire         oMAC_ValidWr;
-wire [31:0]  oMAC_AddrWr;
-wire [3:0]   oMAC_TagWr;
-wire [2:0]   oMAC_IdWr;
-wire [1:0]   oMAC_LenWr;
-wire [3:0]   oMAC_QoSWr;
+reg          oMAC_ReadyRsp;
+reg          oMAC_ValidWr;
+reg  [31:0]  oMAC_AddrWr;
+reg  [3:0]   oMAC_TagWr;
+reg  [2:0]   oMAC_IdWr;
+reg  [1:0]   oMAC_LenWr;
+reg  [3:0]   oMAC_QoSWr;
 wire         iMAC_ReadyWr;
-wire [31:0]  oMAC_DataWr;
-wire [3:0]   oMAC_MaskWr;
-wire         oMAC_EoD;
+reg  [31:0]  oMAC_DataWr;
+reg  [3:0]   oMAC_MaskWr;
+reg          oMAC_EoD;
+reg  [`REQWR_INFO_W-1:0] rIFWrInfo;
+reg  [`REQWR_INFO_W-1:0] rDMWrInfo;
+reg  [`REQRD_INFO_W-1:0] rIFRdInfo;
+reg  [`REQRD_INFO_W-1:0] rDMRdInfo;
+reg  [`QOSWR_W-1:0]      rQoS0;
+reg  [`QOSWR_W-1:0]      rQoS1;
+reg  [`QOSRD_W-1:0]      rQoS2;
+reg                      rWr0;
+reg                      rWr1;
+reg  [`REQWR_DATA_W-1:0] rWrData1;
+reg  [`REQWR_INFO_W-1:0] rWrData0;
+reg                      ppIF_ValidWr;
+reg                      ppDM_ValidWr;
+reg  [2:0]               state;
+reg  [2:0]               next_state;
+reg  [3:0]               ppIF_QoSWr;
+reg  [3:0]               ppDM_QoSWr;
+wire                     wFull0;
+wire [4:0]               wEmpty0;
+reg                      rRd0;
+reg                      rRd1;
+reg  [3:0]               counter;
+reg  [`REQWR_INFO_W-1:0] wWrReq0;
+reg  [`REQWR_DATA_W-1:0] wWrData1;
 
-//Register counter declare
-reg  [7:0]   rFifoWrReqCnt;
-reg  [7:0]   rFifoWrDataCnt;
-reg  [7:0]   rFifoRdReqCnt;
-reg  [7:0]   rFifoRdRspCnt;
 
-always @(posedge clk or negedge resetn) begin
-    if (~resetn) begin 
-        rFifoWrReqCnt   <= 8'b0;
-        rFifoWrDataCnt  <= 8'b0;
-        rFifoRdReqCnt   <= 8'b0;
-        rFifoRdRspCnt   <= 8'b0;
-    end else begin 
-        if (iMAC_ReadyWr) rFifoWrReqCnt <= rFifoWrReqCnt - 1;
-        else if (oIF_ReadyWr | oDM_ReadyWr) rFifoWrReqCnt <= rFifoWrReq + 1; 
-        else if (iMAC_ReadyWr & (oIF_ReadyWr | oDM_ReadyWr)) rFifoWrReqCnt <= rFifoWrReq ;
-
-        if (iMAC_ReadyRd) rFifoRdReqCnt <= rFifoRdReqCnt - 1;
-        else if (oIF_ReadyRd | oDM_ReadyRd) rFifoRdReqCnt <= rFifoRdReq + 1; 
-        else if (iMAC_ReadyRd & (oIF_ReadyRd | oDM_ReadyRd)) rFifoRdReqCnt <= rFifoRdReq ;
-    end 
-end 
 
 always @(posedge clk or negedge resetn) begin 
     if (~resetn) begin 
-        rQoS0 <= 4'b0;
-    end else begin 
+        rQoS0     <= 4'b0;
+        rQoS1     <= 4'b0;
+        rQoS2     <= 4'b0;
+        rIFWrInfo <= 45'b0;
+        rDMWrInfo <= 45'b0;
+        rIFRdInfo <= 45'b0;
+        rDMRdInfo <= 45'b0;
+        rWr0      <= 1'b0;
+        rWrData0  <= 45'b0;
+        rWr1      <= 1'b0;
+        rWrData1  <= 36'b0;
+    end else begin  
         //Save the info
         if (iIF_ValidWr) begin 
             rIFWrInfo <= {iIF_AddrWr, iIF_TagWr, iIF_IdWr, iIF_LenWr, iIF_QoSWr}; 
@@ -275,14 +320,19 @@ always @(posedge clk or negedge resetn) begin
             rDMRdInfo <= {iDM_AddrRd, iDM_TagRd, iDM_IdRd, iDM_LenRd, iDM_QoSRd};
         end 
         //Arbiter
-        if (iIF_ValidWr & iDM_ValidWr) 
+        if (iIF_ValidWr & iDM_ValidWr)  begin
             rQoS0 <= iIF_QoSWr > iDM_QoSWr ? iIF_QoSWr : iDM_QoSWr;
-        else if (iIF_ValidWr)
+            rQoS1 <= iIF_QoSWr > iDM_QoSWr ? iIF_QoSWr : iDM_QoSWr;
+        end else if (iIF_ValidWr) begin
             rQoS0 <= iIF_QoSWr ;
-        else if (iDM_ValidWr)
+            rQoS1 <= iIF_QoSWr ;
+        end else if (iDM_ValidWr) begin
             rQoS0 <= iDM_QoSWr;
-        else 
+            rQoS1 <= iDM_QoSWr;
+        end else  begin
             rQoS0 <= 4'b0;
+            rQoS1 <= 4'b0;
+        end
         if (iIF_ValidRd & iDM_ValidRd) 
             rQoS2 <= iIF_QoSRd > iDM_QoSRd ? iIF_QoSRd : iDM_QoSRd;
         else if (iIF_ValidRd)
@@ -297,45 +347,32 @@ always @(posedge clk or negedge resetn) begin
             rWrData0 <= rIFWrInfo;
             if (~iIF_EoD) begin 
                 rWr1     <= 1'b1;
-                rWrData1 <= iIF_DataWr;
+                rWrData1 <= {iIF_DataWr, iIF_MaskWr};
             end  else begin 
                 rWr1     <= 1'b0;
-                rWrData1 <= 32'b0;
+                rWrData1 <= 36'b0;
             end
         end else begin 
             rWr0     <= 1'b0;
-            rWrData0 <= ??'b0;
+            rWrData0 <= 45'b0;
         end 
         if (oDM_ReadyWr) begin 
             rWr0     <= 1'b1;
             rWrData0 <= rDMWrInfo;
             if (~iDM_EoD) begin 
                 rWr1     <= 1'b1;
-                rWrData1 <= iDM_DataWr;
+                rWrData1 <= {iDM_DataWr, iDM_MaskWr};
             end  else begin 
                 rWr1     <= 1'b0;
-                rWrData1 <= 32'b0;
+                rWrData1 <= 36'b0;
             end
         end else begin 
             rWr0     <= 1'b0;
-            rWrData0 <= ??'b0;
-        end 
-        if (oIF_ReadyRd) begin 
-            rWr2     <= 1'b1;
-            rWrData2 <= rIFWrInfo;
-        end else begin 
-            rWr2     <= 1'b0;
-            rWrData2 <= ??'b0;
-        end 
-        if (oDM_ReadyRd) begin 
-            rWr2     <= 1'b1;
-            rWrData2 <= rIFWrInfo;
-        end else begin 
-            rWr2     <= 1'b0;
-            rWrData2 <= ??'b0;
+            rWrData0 <= 45'b0;
         end 
     end 
 end 
+
 //Acknowledge the request
 always @(posedge clk or negedge resetn) begin 
     if (~resetn) begin 
@@ -344,7 +381,7 @@ always @(posedge clk or negedge resetn) begin
             oIF_ReadyRd <= 1'b0;
             oDM_ReadyRd <= 1'b0;
     end else begin 
-        if (ppIF_ValidWr & ppIF_ValidWr) begin 
+        if (ppIF_ValidWr & ppDM_ValidWr) begin 
             if (ppIF_QoSWr > ppDM_QoSWr )
                 oIF_ReadyWr <= ~wFull0;
             else
@@ -357,47 +394,116 @@ always @(posedge clk or negedge resetn) begin
             oIF_ReadyWr <= 1'b0;
             oDM_ReadyWr <= 1'b0;
         end 
-        if (ppIF_ValidRd & ppIF_ValidRd) begin 
-            if (ppIF_QoSRd > ppDM_QoSRd )
-                oIF_ReadyRd <= ~wFull2;
-            else
-                oDM_ReadyRd <= ~wFull2;
-        end else if (ppIF_ValidRd ) begin 
-            oIF_ReadyRd <= ~wFull2;
-        end else if (ppDM_ValidRd) begin 
-            oDM_ReadyRd <= ~wFull2;
-        end else begin 
-            oIF_ReadyRd <= 1'b0;
-            oDM_ReadyRd <= 1'b0;
-        end 
+        ppIF_ValidWr  <= iIF_ValidWr;
+        ppDM_ValidWr  <= iDM_ValidWr;
+        ppIF_QoSWr    <= iIF_QoSWr;
+        ppDM_QoSWr    <= iDM_QoSWr;
     end 
 end 
+
+
 //Push request out to memory port
 //Wr request state machine
+always @(posedge clk or negedge resetn) begin 
+    if (~resetn) begin 
+        state <= WRREQ_IDLE; 
+    end else begin 
+        state <= next_state;
+    end
+end  
+always @(*) begin 
+    next_state = state;
+    case (state)
+        WRREQ_IDLE       : begin 
+                               if (|wEmpty0) begin 
+                                   next_state = WRREQ_FETCH_REQ;
+                               end else begin 
+                                   next_state = WRREQ_IDLE;
+                               end 
+                           end 
+        WRREQ_FETCH_REQ  : begin 
+                               if (iMAC_ReadyWr) begin 
+                                   next_state = WRREQ_FETCH_DATA;
+                               end 
+                           end  
+        WRREQ_FETCH_DATA: begin 
+                               if (counter >1) begin 
+                                   next_state = WRREQ_FETCH_DATA;
+                               end else begin 
+                                   next_state = WRREQ_LAST_DATA;
+                               end
+                           end 
+        WRREQ_LAST_DATA  : begin 
+                               next_state = WRREQ_IDLE;
+                           end
+        default          : begin 
+                               next_state = WRREQ_IDLE;
+                           end
+    endcase 
+end 
 
 always @(posedge clk or negedge resetn) begin 
     if (~resetn) begin 
-        rRd0 <= 1'b0;
+         rRd0         <= 1'b0;
+         rRd1         <= 1'b0;
+         oMAC_AddrWr  <= 32'b0;
+         oMAC_TagWr   <= 4'b0;
+         oMAC_IdWr    <= 3'b0;
+         oMAC_QoSWr   <= 4'b0;
+         oMAC_LenWr   <= 2'b0;
+         counter      <= 4'b0; 
+         oMAC_ValidWr <= 1'b0;
+         oMAC_DataWr  <= 32'b0;
+         oMAC_MaskWr  <= 4'b0;
+         oMAC_EoD     <= 1'b0;
     end else begin 
-        if (|wEmpty0) begin
-            rRd0 <= 1'b1;
-            {oMAC_AddrWr, oMAC_TagWr, oMAC_IdWr, oMAC_LenWr, oMAC_QoSWr} <= wWrReq0;  //FIXME: QoS and Len is only needed
-            oMAC_ValidWr <= 1'b1;
-
-        end else  begin 
-            rRd0 <= 1'b0;
-            oMAC_ValidWr <= 1'b0;
-            {oMAC_AddrWr, oMAC_TagWr, oMAC_IdWr, oMAC_LenWr, oMAC_QoSWr} <= 0; 
-        end 
-        if (iMAC_ReadyWr)
-        
+        case (state )
+            WRREQ_IDLE       : begin 
+                                   rRd0         <= 1'b0;
+                                   rRd1         <= 1'b0;
+                                   oMAC_AddrWr  <= 32'b0;
+                                   oMAC_TagWr   <= 4'b0;
+                                   oMAC_IdWr    <= 3'b0;
+                                   oMAC_QoSWr   <= 4'b0;
+                                   oMAC_LenWr   <= 2'b0;
+                                   counter      <= 4'b0; 
+                                   oMAC_ValidWr <= 1'b0;
+                                   oMAC_DataWr  <= 32'b0;
+                                   oMAC_MaskWr  <= 4'b0;
+                                   oMAC_EoD     <= 1'b0;
+                               end 
+            WRREQ_FETCH_REQ  : begin 
+                                   rRd0         <= 1'b1;
+                                   oMAC_AddrWr  <= wWrReq0[`ADDRWR_RANGE];
+                                   oMAC_TagWr   <= wWrReq0[`TAGWR_RANGE];
+                                   oMAC_IdWr    <= wWrReq0[`IDWR_RANGE];
+                                   oMAC_QoSWr   <= wWrReq0[`QOSWR_RANGE];
+                                   oMAC_LenWr   <= wWrReq0[`LENWR_RANGE];
+                                   counter      <= wWrReq0[`LENWR_RANGE]==2'b00 ? 1  :
+                                                   wWrReq0[`LENWR_RANGE]==2'b01 ? 2  : 
+                                                   wWrReq0[`LENWR_RANGE]==2'b10 ? 4  : 
+                                                   wWrReq0[`LENWR_RANGE]==2'b11 ? 8  : 0 ;
+                                   oMAC_ValidWr <= 1'b1;
+                               end
+            WRREQ_FETCH_DATA : begin 
+                                   rRd1         <= 1'b1;
+                                   oMAC_DataWr  <= wWrData1[`DATAWR_RANGE];
+                                   oMAC_MaskWr  <= wWrData1[`MASKWR_RANGE];
+                                   counter      <= counter - 1;
+                               end 
+            WRREQ_LAST_DATA  : begin 
+                                   rRd1         <= 1'b1;
+                                   oMAC_DataWr  <= wWrData1[`DATAWR_RANGE];
+                                   oMAC_MaskWr  <= wWrData1[`MASKWR_RANGE];
+                                   oMAC_EoD     <= 1'b1; 
+                               end
+        endcase
     end 
-
 end 
 
 
 //FIXME, need to change the DSIZE of wr request
-fifo_wrapper #(.DSIZE(32), .ANSIZE(5), .HBSIZE(7) ) fifoWrReq0 (
+fifo_wrapper #(.DSIZE(45), .ANSIZE(5), .HBSIZE(7) ) fifoWrReq0 (
   .iWrClk(clk),
   .iWrResetn(resetn),
   .iWr(rWr0),
@@ -411,7 +517,7 @@ fifo_wrapper #(.DSIZE(32), .ANSIZE(5), .HBSIZE(7) ) fifoWrReq0 (
   .oEmpty(wEmpty0)
 );
 
-fifo_wrapper #(.DSIZE(32), .ANSIZE(5), .HBSIZE(7) ) fifoWrData1 (
+fifo_wrapper #(.DSIZE(36), .ANSIZE(5), .HBSIZE(7) ) fifoWrData1 (
   .iWrClk(clk),
   .iWrResetn(resetn),
   .iWr(rWr1),
@@ -425,7 +531,7 @@ fifo_wrapper #(.DSIZE(32), .ANSIZE(5), .HBSIZE(7) ) fifoWrData1 (
   .oEmpty(wEmpty1)
 );
 
-fifo_wrapper #(.DSIZE(32), .ANSIZE(5), .HBSIZE(7) ) fifoRdReq2 (
+fifo_wrapper #(.DSIZE(45), .ANSIZE(5), .HBSIZE(7) ) fifoRdReq2 (
   .iWrClk(clk),
   .iWrResetn(resetn),
   .iWr(rWr2),
@@ -439,7 +545,7 @@ fifo_wrapper #(.DSIZE(32), .ANSIZE(5), .HBSIZE(7) ) fifoRdReq2 (
   .oEmpty(wEmpty2)
 );
 
-fifo_wrapper #(.DSIZE(32), .ANSIZE(5), .HBSIZE(7) ) fifoRdRspData3 (
+fifo_wrapper #(.DSIZE(36), .ANSIZE(5), .HBSIZE(7) ) fifoRdRspData3 (
   .iWrClk(clk),
   .iWrResetn(resetn),
   .iWr(rWr3),

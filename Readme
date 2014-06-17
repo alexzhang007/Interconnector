@@ -3,4 +3,6 @@ Author : Alex Zhang (cgzhangwei@gmail.com)
 Date   : Jun.13.2014
 * Jun.16.2014
   IF_WrReq is debugging passed. 
+* Jun.17.2014
+  Resolve the Bug16: Change the read out data to latch output in the fifo_wrapper.v. The output and input of write channel is FSM control. When there is only one IF wr request coming into mai, the time between entering and leving is 6cycles. The performance is very low. wr0 going to fifoWrReq needs 1 cycle,  wr request pushing into fifo costs 1 cycle, empty needs 1 cycle, FSM cost 2 cycle. Hence, it causes the lower performance(5 cycles). Need to improve the performance. 
 

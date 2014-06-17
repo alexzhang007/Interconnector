@@ -1,6 +1,7 @@
 //Author     : Alex Zhang (cgzhangwei@gmail.com)
 //Date       : Jun.13.2014 
 //Description: Implement the fifo with qos
+//             FIX Bug16: There is request coming to MAI, fifoWrReq0 cannot be written
 
 module fifo_wrapper (
 iWrClk,
@@ -73,7 +74,7 @@ assign wFifoStatus = {wFull4, wFull3, wFull2, wFull1, wFull0};
 always @(posedge iWrClk or negedge iWrResetn) begin 
     if (~iWrResetn) begin 
         oFull <= 1'b0;
-        oEmpty<= 5'b0;
+        //oEmpty<= 5'b0;
     end else begin 
         if (iQoS[3]) begin 
             oFull  <= wFull4;
@@ -165,41 +166,33 @@ always @(posedge iWrClk or negedge iWrResetn) begin
 end 
 
 //Read request
-always @(posedge iRdClk or negedge iRdResetn) begin 
-    if (~iRdResetn) begin
-        rRd0    <= 1'b0;
-        rRd1    <= 1'b0;
-        rRd2    <= 1'b0;
-        rRd3    <= 1'b0;
-        rRd4    <= 1'b0;
-        oRdData <= 0;
-    end else begin 
+//FIXME: Latch output the data since the write request FSM in mai.v will just have 4 states.
+//If here is changed to sequential output, there will be wrong behavior
+always @(*) begin 
         if(iRd & ~wEmpty4) begin 
-            rRd4    <= 1'b1; 
-            oRdData <= wRdData4;
+            rRd4    = 1'b1; 
+            oRdData = wRdData4;
         end else if (iRd & wEmpty4 & ~wEmpty3) begin 
-            rRd3    <= 1'b1; 
-            oRdData <= wRdData3;
+            rRd3    = 1'b1; 
+            oRdData = wRdData3;
         end else if (iRd & wEmpty4 & wEmpty3 & ~wEmpty2) begin 
-            rRd2    <= 1'b1; 
-            oRdData <= wRdData2;
+            rRd2    = 1'b1; 
+            oRdData = wRdData2;
         end else if (iRd & wEmpty4 & wEmpty3 & wEmpty2 & ~wEmpty1) begin 
-            rRd1    <= 1'b1; 
-            oRdData <= wRdData1;
+            rRd1    = 1'b1; 
+            oRdData = wRdData1;
         end else if (iRd & wEmpty4 & wEmpty3 & wEmpty2 & wEmpty1 & ~wEmpty0) begin 
-            rRd0    <= 1'b1; 
-            oRdData <= wRdData0;
+            rRd0    = 1'b1; 
+            oRdData = wRdData0;
         end else begin 
-            rRd0    <= 1'b0;
-            rRd1    <= 1'b0;
-            rRd2    <= 1'b0;
-            rRd3    <= 1'b0;
-            rRd4    <= 1'b0;
-            oRdData <= 0;
+            rRd0    = 1'b0;
+            rRd1    = 1'b0;
+            rRd2    = 1'b0;
+            rRd3    = 1'b0;
+            rRd4    = 1'b0;
+            oRdData = 0;
         end 
-    end 
 end 
-
 
 fifo #(.DSIZE(DSIZE), .ASIZE(ANSIZE)) fifo0 (
   .wclk(iWrClk),
